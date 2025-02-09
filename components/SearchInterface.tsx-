@@ -1,0 +1,212 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import SearchInput from "./SearchInput";
+import ResultItem from "./ResultItem";
+import ThemeToggle from "./ThemeToggle";
+import LabSources from "./LabSources";
+import { Settings, X } from "lucide-react";
+
+export default function SearchInterface() {
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [apiKey, setApiKey] = useState("");
+  const [apiUrl, setApiUrl] = useState("");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [generatedResponse, setGeneratedResponse] = useState("");
+  const [labSources, setLabSources] = useState<any[]>([]);
+
+  // ✅ Load API Key & URL from localStorage
+  useEffect(() => {
+    setApiKey(localStorage.getItem("es_api_key") || "");
+    setApiUrl(localStorage.getItem("es_api_url") || "");
+    fetchLabSources();
+  }, []);
+
+  // ✅ Fetch Lab Sources from API
+  const fetchLabSources = async () => {
+    try {
+      console.log("🔍 Fetching Lab Sources...");
+      const response = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: "", apiKey, apiUrl }),
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch lab sources");
+
+      const data = await response.json();
+      console.log("✅ Fetched Lab Sources Data:", JSON.stringify(data.labSources, null, 2));
+
+      // Preserve checked state or initialize all as checked
+      setLabSources((prevSources) =>
+        data.labSources.map((source: any) => ({
+          id: source.id,
+          text: source.text,
+          checked: prevSources.find((s) => s.text === source.text)?.checked ?? true,
+        }))
+      );
+
+    } catch (error) {
+      console.error("❌ Error fetching lab sources:", error);
+    }
+  };
+
+  // ✅ Handle Search
+  const handleSearch = async (query: string) => {
+    console.log(`🔍 Sending search request for query: "${query}"`);
+
+    // Extract only checked sources
+    const selectedLabSources = labSources
+      .filter((source) => source.checked)
+      .map((source) => source.text);
+
+    console.log("🎯 Selected Lab Sources:", JSON.stringify(selectedLabSources, null, 2));
+
+    try {
+      const response = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          apiKey,
+          apiUrl,
+          selectedLabSources, // ✅ Send only checked lab sources
+        }),
+      });
+
+      const data = await response.json();
+      console.log("📥 Search Response:", JSON.stringify(data, null, 2));
+
+      if (!data.results || !Array.isArray(data.results)) {
+        console.error("❌ Invalid results format:", data.results);
+        return;
+      }
+
+      setSearchResults(data.results);
+
+      if (data.labSources && Array.isArray(data.labSources)) {
+        console.log("✅ Updating labSources state:", JSON.stringify(data.labSources, null, 2));
+
+        setLabSources((prevSources) =>
+          data.labSources.map((source: any) => ({
+            id: source.id,
+            text: source.text,
+            checked: prevSources.find((s) => s.text === source.text)?.checked ?? true,
+          }))
+        );
+      } else {
+        console.warn("⚠️ No valid lab sources found in response.");
+      }
+
+    } catch (error) {
+      console.error("❌ Error fetching search results:", error);
+    }
+  };
+
+  // ✅ Toggle Lab Source Selection
+  const handleLabSourceToggle = (id: number) => {
+    setLabSources((prevSources) =>
+      prevSources.map((source) =>
+        source.id === id ? { ...source, checked: !source.checked } : source
+      )
+    );
+  };
+
+  useEffect(() => {
+    console.log("🔍 Updated labSources in SearchInterface:", JSON.stringify(labSources, null, 2));
+  }, [labSources]);
+
+  // ✅ Close Settings Modal
+  const closeSettings = () => setIsSettingsOpen(false);
+
+  return (
+    <div className="w-full min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
+      <div className="w-full max-w-7xl mx-auto space-y-4">
+        {/* 🔹 Main UI Box */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-xl font-bold">The Rag Really Ties the App Together</h1>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+              >
+                <Settings size={20} />
+              </button>
+              <ThemeToggle />
+            </div>
+          </div>
+          <SearchInput onSearch={handleSearch} />
+        </div>
+
+        {/* 🔹 Layout: Results + Sidebar */}
+        <div className="flex space-x-4">
+          <div className="flex-grow space-y-4">
+            {/* 🔹 Generated Response Box */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+              <h2 className="text-lg font-semibold mb-2">Generated Response</h2>
+              <div className="min-h-[50px] max-h-[300px] overflow-y-auto">
+                {generatedResponse ? (
+                  <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                    {generatedResponse}
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+                    No response generated yet.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* 🔹 Search Results */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+              <h2 className="text-lg font-semibold mb-2">Elasticsearch Results</h2>
+              <div className="space-y-4">
+                {searchResults.map((result) => (
+                  <ResultItem key={result.id} result={result} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 🔹 Sidebar: Lab Sources */}
+          <div className="w-64">
+            <LabSources sources={labSources} onToggle={handleLabSourceToggle} />
+          </div>
+        </div>
+      </div>
+
+      {/* 🔹 Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-96">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Settings</h2>
+              <button onClick={closeSettings} className="text-gray-500 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="API Key"
+                className="w-full px-4 py-2 text-sm rounded-full border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <input
+                type="text"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                placeholder="ES URL"
+                className="w-full px-4 py-2 text-sm rounded-full border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
