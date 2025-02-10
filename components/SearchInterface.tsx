@@ -75,7 +75,7 @@ export default function SearchInterface() {
                     query,
                     apiKey,
                     apiUrl,
-                    sources: selectedSources,
+                    selectedLabSources: selectedSources,
                     numSources,   // ✅ Send user-defined number of sources
                     useChunk,     // ✅ Send whether to use chunking or full doc
                 }),

@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server";
-import { Client } from "@elastic/elasticsearch";
+import {NextResponse} from "next/server";
+import {Client} from "@elastic/elasticsearch";
 
 export async function POST(request: Request) {
     try {
-        const { query, apiKey, apiUrl, selectedLabSources, numSources, useChunk } = await request.json();
+        const {query, apiKey, apiUrl, selectedLabSources, numSources, useChunk} = await request.json();
         const fieldToUse = useChunk ? "semantic_body" : "body";
 
         if (!query || !apiKey || !apiUrl) {
             return NextResponse.json(
-                { error: "Missing query, API key, or API URL" },
-                { status: 400 }
+                {error: "Missing query, API key, or API URL"},
+                {status: 400}
             );
         }
 
@@ -18,18 +18,20 @@ export async function POST(request: Request) {
 
         const client = new Client({
             node: apiUrl,
-            auth: { apiKey },
+            auth: {apiKey},
         });
 
         console.log("✅ Elasticsearch client initialized");
 
-        // Build filter only if sources are selected
+        // Debugging: Log selected sources
+        console.log("🛠️ Selected Lab Sources:", selectedLabSources);
+
         let filterClause = null;
         if (selectedLabSources && selectedLabSources.length > 0) {
             filterClause = {
                 bool: {
                     should: selectedLabSources.map((source: string) => ({
-                        term: { "url_path_dir1.keyword": source },
+                        term: {"url_path_dir1.keyword": source},
                     })),
                     minimum_should_match: 1,
                 },
@@ -106,8 +108,8 @@ export async function POST(request: Request) {
         } catch (esError) {
             console.error("❌ Elasticsearch request failed:", esError.meta?.body || esError.message);
             return NextResponse.json(
-                { error: "Failed to query Elasticsearch", details: esError.meta?.body || esError.message },
-                { status: 500 }
+                {error: "Failed to query Elasticsearch", details: esError.meta?.body || esError.message},
+                {status: 500}
             );
         }
 
@@ -119,8 +121,8 @@ export async function POST(request: Request) {
         if (!rawHits || !Array.isArray(rawHits)) {
             console.error("⚠️ Unexpected Elasticsearch response format:", JSON.stringify(result, null, 2));
             return NextResponse.json(
-                { error: "Unexpected response format from Elasticsearch", response: result },
-                { status: 500 }
+                {error: "Unexpected response format from Elasticsearch", response: result},
+                {status: 500}
             );
         }
 
@@ -130,7 +132,10 @@ export async function POST(request: Request) {
         const results = rawHits.map((hit: any, index: number) => ({
             id: hit._id || `hit-${index}`,
             title: hit.fields?.title?.[0] || "Untitled",
-            url_path: `https://www.elastic.co${hit.fields?.url_path?.[0] || "#"}`,
+            // url_path: `https://www.elastic.co${hit.fields?.url_path?.[0] || "#"}`,
+            url_path: hit.fields?.url_path?.[0]?.startsWith("https://www.elastic.co")
+                ? hit.fields?.url_path?.[0]
+                : `https://www.elastic.co${hit.fields?.url_path?.[0] || "#"}`,
             main_text: useChunk
                 ? hit.highlight?.semantic_body?.[0] || "No preview available" // Use chunk (semantic_body)
                 : hit.fields?.body?.[0] || "No preview available", // Use full doc (body)
@@ -155,12 +160,12 @@ export async function POST(request: Request) {
 
         console.log("🔹 Extracted Lab Sources:", JSON.stringify(labSources, null, 2));
 
-        return NextResponse.json({ results, labSources });
+        return NextResponse.json({results, labSources});
     } catch (error: any) {
         console.error("❌ Unexpected server error:", error);
         return NextResponse.json(
-            { error: error.message || "Unexpected error" },
-            { status: 500 }
+            {error: error.message || "Unexpected error"},
+            {status: 500}
         );
     }
 }
