@@ -16,6 +16,11 @@ export default function SearchInterface() {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [generatedResponse, setGeneratedResponse] = useState("");
     const [labSources, setLabSources] = useState<any[]>([]);
+    const [useContextOnly, setUseContextOnly] = useState(true);
+    const [numSources, setNumSources] = useState(3);
+    const [useChunk, setUseChunk] = useState(true); // true = `semantic_body`, false = `body`
+    const [isExpanded, setIsExpanded] = useState(false);
+
 
     useEffect(() => {
         setApiKey(localStorage.getItem("es_api_key") || "");
@@ -70,7 +75,9 @@ export default function SearchInterface() {
                     query,
                     apiKey,
                     apiUrl,
-                    sources: selectedSources, // ✅ Send selected lab sources for filtering
+                    sources: selectedSources,
+                    numSources,   // ✅ Send user-defined number of sources
+                    useChunk,     // ✅ Send whether to use chunking or full doc
                 }),
             });
 
@@ -89,18 +96,28 @@ export default function SearchInterface() {
                 setLabSources(data.labSources);
             }
 
-            // ✅ Extract top 3 document highlights for prompt
-            const topDocs = data.results.slice(0, 3).map((doc) => doc.main_text).join("\n\n");
+            // ✅ Extract top `numSources` document highlights for prompt
+            const fieldToUse = useChunk ? "semantic_body" : "body";
+            const topDocs = data.results
+                .slice(0, numSources)
+                .map((doc) => doc[fieldToUse])
+                .join("\n\n");
+
+            const promptInstruction = useContextOnly
+                ? `ONLY use the provided documents for your response. Do not use any prior knowledge.`
+                : `Prefer using the provided documents, but if they lack sufficient details, you may use prior knowledge. 
+               If you do, explicitly state: "[This response includes knowledge beyond the provided context.]"`;
+
             const prompt = `The user has asked a question: ${query}. Use the following documents to answer the question:
 ${topDocs}
+
+${promptInstruction}
+
 Format the response with:
 - Proper Markdown headings (### for sections)
 - Clear bullet points for lists
 - Extra line breaks for readability
-- Paragraph spacing between sections
-- Ensure each paragraph is concise
-
-Only use the provided documents for your response.`;
+- Paragraph spacing between sections`;
 
             console.log("📤 Sending prompt to LLM:", prompt);
             streamLLMResponse(prompt);
@@ -194,24 +211,40 @@ Only use the provided documents for your response.`;
                     <SearchInput onSearch={handleSearch}/>
                 </div>
 
-                {/* 🔹 Layout: Results + Sidebar */}
-                <div className="flex space-x-4">
-                    <div className="flex-grow space-y-4">
+{/* 🔹 Layout: Results + Sidebar */}
+<div className="flex max-w-7xl mx-auto space-x-4 w-full">
+    {/* Left Side: Generated Response & Search Results */}
+    <div className="flex-grow space-y-4 max-w-[75%]">
                         {/* 🔹 Generated Response Box */}
-                        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg shadow-lg p-4">
-                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Generated
-                                Response</h2>
+                        <div className={`bg-gray-100 dark:bg-gray-800 rounded-lg shadow-lg p-4 relative transition-all 
+            ${isExpanded ? "w-full" : "w-full"} max-w-full`}>
+                            <div className="flex justify-between items-center mb-2">
+                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Generated
+                                    Response</h2>
+                                {generatedResponse && (
+                                    <button
+                                        onClick={() => setIsExpanded(!isExpanded)}
+                                        className="text-blue-500 dark:text-blue-400 text-sm hover:underline focus:outline-none"
+                                    >
+                                        {isExpanded ? "Collapse" : "Expand"}
+                                    </button>
+                                )}
+                            </div>
+
                             <div
                                 id="generatedResponseContainer"
-                                className="min-h-[50px] max-h-[300px] overflow-y-auto px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-md"
+                                className={`px-4 py-4 bg-gray-50 dark:bg-gray-700 rounded-md overflow-y-auto transition-all ${
+                                    isExpanded ? "max-h-[600px]" : "max-h-[250px]"
+                                }`}
                             >
                                 {generatedResponse ? (
                                     <ReactMarkdown
-                                        className="prose prose-lg dark:prose-invert text-gray-900 dark:text-gray-200">
+                                        className="prose prose-sm text-sm dark:prose-invert text-gray-900 dark:text-gray-200 leading-relaxed space-y-3"
+                                    >
                                         {generatedResponse}
                                     </ReactMarkdown>
                                 ) : (
-                                    <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 italic">
                                         No response generated yet.
                                     </p>
                                 )}
@@ -232,10 +265,21 @@ Only use the provided documents for your response.`;
                     </div>
 
                     {/* 🔹 Sidebar: Lab Sources */}
-                    <div className="w-64">
-                        <LabSources sources={labSources} onToggle={handleLabSourceToggle}/>
+                    <div className="w-72 flex-shrink-0">
+                        <LabSources
+                            sources={labSources}
+                            onToggle={handleLabSourceToggle}
+                            useContextOnly={useContextOnly}
+                            setUseContextOnly={setUseContextOnly}
+                            numSources={numSources}
+                            setNumSources={setNumSources}
+                            useChunk={useChunk}
+                            setUseChunk={setUseChunk}
+                        />
                     </div>
                 </div>
+
+
             </div>
 
             {/* 🔹 Settings Modal */}

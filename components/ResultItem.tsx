@@ -26,7 +26,7 @@ export default function ResultItem({ result }: ResultItemProps) {
 
   return (
     <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-      <h2 className="text-lg font-semibold mb-2">{result.title}</h2>
+      <h2 className="text-lg dark:text-white font-semibold mb-2">{result.title}</h2>
 
       {/* ✅ Clickable Elastic.co URL */}
       <a
