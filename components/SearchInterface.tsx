@@ -96,20 +96,34 @@ export default function SearchInterface() {
                 setLabSources(data.labSources);
             }
 
-            // ✅ Extract top `numSources` document highlights for prompt
+// ✅ Extract top `numSources` document highlights for prompt with titles
             const fieldToUse = useChunk ? "semantic_body" : "body";
-            const topDocs = data.results
-                .slice(0, numSources)
-                .map((doc) => doc[fieldToUse])
+            const sources = data.results.slice(0, numSources).map((doc, index) => ({
+                id: `Source ${index + 1}`,
+                title: doc.title,
+                url: doc.url_path,
+                content: doc[fieldToUse],
+            }));
+
+// ✅ Format sources for prompt (structured with identifiers)
+            const formattedDocs = sources
+                .map((source) => `${source.id}: ${source.title}\n${source.content}`)
                 .join("\n\n");
 
+// ✅ Instruction for LLM to cite only used sources
             const promptInstruction = useContextOnly
-                ? `ONLY use the provided documents for your response. Do not use any prior knowledge.`
+                ? `ONLY use the provided documents for your response. Do not use any prior knowledge. 
+                If the answer is not in the provided documents return "I'm unable to provide an answer using the included context." 
+                 Cite ONLY the sources you actually reference in your response.`
                 : `Prefer using the provided documents, but if they lack sufficient details, you may use prior knowledge. 
-               If you do, explicitly state: "[This response includes knowledge beyond the provided context.]"`;
+       If you do, explicitly state: "[This response includes knowledge beyond the provided context.]" 
+       Cite ONLY the sources you actually reference in your response.`;
+
+// ✅ Sources list (for reference) — LLM will decide what to cite
+            const sourcesList = sources.map((source) => `- **${source.id}**: ${source.title} (${source.url})`).join("\n");
 
             const prompt = `The user has asked a question: ${query}. Use the following documents to answer the question:
-${topDocs}
+${formattedDocs}
 
 ${promptInstruction}
 
@@ -117,10 +131,16 @@ Format the response with:
 - Proper Markdown headings (### for sections)
 - Clear bullet points for lists
 - Extra line breaks for readability
-- Paragraph spacing between sections`;
+- Paragraph spacing between sections
+- **At the end of the response, include a "*Sources Used*" section listing ONLY the document titles that were actually referenced.**
+
+
+### Sources Used:
+(Only include sources that were directly referenced in your response.)`;
 
             console.log("📤 Sending prompt to LLM:", prompt);
             streamLLMResponse(prompt);
+
         } catch (error) {
             console.error("❌ Error fetching search results:", error);
         }
@@ -211,10 +231,10 @@ Format the response with:
                     <SearchInput onSearch={handleSearch}/>
                 </div>
 
-{/* 🔹 Layout: Results + Sidebar */}
-<div className="flex max-w-7xl mx-auto space-x-4 w-full">
-    {/* Left Side: Generated Response & Search Results */}
-    <div className="flex-grow space-y-4 max-w-[75%]">
+                {/* 🔹 Layout: Results + Sidebar */}
+                <div className="flex max-w-7xl mx-auto space-x-4 w-full">
+                    {/* Left Side: Generated Response & Search Results */}
+                    <div className="flex-grow space-y-4 max-w-[75%]">
                         {/* 🔹 Generated Response Box */}
                         <div className={`bg-gray-100 dark:bg-gray-800 rounded-lg shadow-lg p-4 relative transition-all 
             ${isExpanded ? "w-full" : "w-full"} max-w-full`}>
