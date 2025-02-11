@@ -15,11 +15,13 @@ export default function SearchInterface() {
     const [apiUrl, setApiUrl] = useState("");
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [generatedResponse, setGeneratedResponse] = useState("");
+    const [generatedPrompt, setGeneratedPrompt] = useState(""); // ✅ Store the LLM prompt
     const [labSources, setLabSources] = useState<any[]>([]);
     const [useContextOnly, setUseContextOnly] = useState(true);
     const [numSources, setNumSources] = useState(3);
     const [useChunk, setUseChunk] = useState(true); // true = `semantic_body`, false = `body`
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isPromptExpanded, setIsPromptExpanded] = useState(false); // ✅ State for Prompt Box
 
 
     useEffect(() => {
@@ -64,6 +66,7 @@ export default function SearchInterface() {
     const handleSearch = async (query: string) => {
         console.log(`🔍 Sending search request for query: "${query}"`);
         setGeneratedResponse("");
+        setGeneratedPrompt(""); // ✅ Reset the prompt when a new search starts
 
         const selectedSources = labSources.filter((source) => source.checked).map((source) => source.text);
 
@@ -96,14 +99,20 @@ export default function SearchInterface() {
                 setLabSources(data.labSources);
             }
 
-// ✅ Extract top `numSources` document highlights for prompt with titles
-            const fieldToUse = useChunk ? "semantic_body" : "body";
-            const sources = data.results.slice(0, numSources).map((doc, index) => ({
-                id: `Source ${index + 1}`,
-                title: doc.title,
-                url: doc.url_path,
-                content: doc[fieldToUse],
-            }));
+// ✅ Extract sources for the prompt
+            const sources = data.results.slice(0, numSources).map((doc, index) => {
+                console.log(`🔍 Processing Source ${index + 1}:`, JSON.stringify(doc, null, 2));  // ✅ Log the full document
+
+                return {
+                    id: `Source ${index + 1}`,
+                    title: doc.title,
+                    url: doc.url_path,
+                    content: doc.prompt_context, // ✅ Always use prompt_context
+                };
+            });
+
+            console.log("✅ Extracted Sources for Prompt:", JSON.stringify(sources, null, 2));
+
 
 // ✅ Format sources for prompt (structured with identifiers)
             const formattedDocs = sources
@@ -139,6 +148,7 @@ Format the response with:
 (Only include sources that were directly referenced in your response.)`;
 
             console.log("📤 Sending prompt to LLM:", prompt);
+            setGeneratedPrompt(prompt); // ✅ Store the generated prompt for UI display
             streamLLMResponse(prompt);
 
         } catch (error) {
@@ -282,6 +292,28 @@ Format the response with:
                                 ))}
                             </div>
                         </div>
+
+                        {/* 🔹 LLM Prompt Box (Collapsible) */}
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">LLM Prompt</h2>
+                                <button
+                                    onClick={() => setIsPromptExpanded(!isPromptExpanded)}
+                                    className="text-blue-500 dark:text-blue-400 text-sm hover:underline focus:outline-none"
+                                >
+                                    {isPromptExpanded ? "Collapse" : "Expand"}
+                                </button>
+                            </div>
+
+                            {isPromptExpanded && (
+                                <pre
+                                    className="bg-gray-50 dark:bg-gray-700 p-4 mt-2 rounded-md overflow-x-auto text-sm text-gray-900 dark:text-gray-200 whitespace-pre-wrap break-words">
+                                    {generatedPrompt}
+                                </pre>
+                            )}
+                        </div>
+
+
                     </div>
 
                     {/* 🔹 Sidebar: Lab Sources */}
@@ -357,5 +389,7 @@ Format the response with:
             )}
 
         </div>
+
+
     );
 }

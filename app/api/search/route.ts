@@ -113,7 +113,9 @@ export async function POST(request: Request) {
             );
         }
 
-        console.log("📥 RAW Elasticsearch response received.");
+        console.log("📥 RAW Elasticsearch response received.", JSON.stringify(result, null, 2));
+        // console.log("📥 RAW Elasticsearch response received.");
+
 
         // Extract Hits
         const rawHits = result?.body?.hits?.hits || result?.hits?.hits;
@@ -128,19 +130,29 @@ export async function POST(request: Request) {
 
         console.log(`✅ Found ${rawHits.length} results`);
 
+
         // Process search hits into frontend-friendly format
-        const results = rawHits.map((hit: any, index: number) => ({
-            id: hit._id || `hit-${index}`,
-            title: hit.fields?.title?.[0] || "Untitled",
-            // url_path: `https://www.elastic.co${hit.fields?.url_path?.[0] || "#"}`,
-            url_path: hit.fields?.url_path?.[0]?.startsWith("https://www.elastic.co")
-                ? hit.fields?.url_path?.[0]
-                : `https://www.elastic.co${hit.fields?.url_path?.[0] || "#"}`,
-            main_text: useChunk
-                ? hit.highlight?.semantic_body?.[0] || "No preview available" // Use chunk (semantic_body)
-                : hit.fields?.body?.[0] || "No preview available", // Use full doc (body)
-            citations: hit.highlight?.body || [],
-        }));
+        const results = rawHits.map((hit: any, index: number) => {
+            const main_text = hit.highlight?.semantic_body?.[0] || "No preview available"; // Always for UI display
+            const prompt_context = useChunk
+                ? hit.highlight?.semantic_body?.[0] || "No chunk content available" // Use highlighted chunk
+                : hit.fields?.body?.[0] || "No full document content available"; // Use full document text
+
+            return {
+                id: hit._id || `hit-${index}`,
+                title: hit.fields?.title?.[0] || "Untitled",
+                url_path: hit.fields?.url_path?.[0]?.startsWith("https://www.elastic.co")
+                    ? hit.fields?.url_path?.[0]
+                    : `https://www.elastic.co${hit.fields?.url_path?.[0] || "#"}`,
+                main_text, // Always uses highlight.semantic_body for UI
+                prompt_context, // This will be used in the LLM prompt
+                citations: hit.highlight?.body || [],
+            };
+        });
+
+        console.log("✅ Extracted Search Results:", JSON.stringify(results, null, 2));
+
+
 
         // Extract Aggregations (Lab Sources)
         console.log("📊 Extracting Aggregation Data...");
