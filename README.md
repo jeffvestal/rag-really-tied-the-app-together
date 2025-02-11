@@ -4,6 +4,8 @@ This repository contains the frontend for a RAG-based search application built w
 
 It provides a web-based UI for running hybrid search queries, constructing LLM prompts, and displaying AI-generated responses.
 
+![App UI](/public/ui-abides-darkmode.png)
+
 ## **Architecture Overview**
 - **Next.js (React-based frontend)**: Handles UI rendering and API communication
 - **Tailwind CSS**: Provides styling for a modern UI
