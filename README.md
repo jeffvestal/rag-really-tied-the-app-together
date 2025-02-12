@@ -2,6 +2,8 @@
 
 This repository contains the frontend for a RAG-based search application built with **Next.js** and **Elasticsearch**. 
 
+*Note: The current code requires Elasticsearch **8.18+ or Serverless** .*
+
 It provides a web-based UI for running hybrid search queries, constructing LLM prompts, and displaying AI-generated responses.
 
 ![App UI](/public/ui-abides-darkmode.png)
