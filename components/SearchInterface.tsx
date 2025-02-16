@@ -155,7 +155,6 @@ Format the response with:
             console.error("❌ Error fetching search results:", error);
         }
     };
-
     const streamLLMResponse = async (prompt: string) => {
         try {
             const response = await fetch("/api/llm", {
@@ -204,6 +203,7 @@ Format the response with:
             console.error("❌ Error streaming LLM response:", error);
         }
     };
+
 
     const handleLabSourceToggle = (id: number) => {
         setLabSources((prevSources) =>

@@ -113,8 +113,8 @@ export async function POST(request: Request) {
             );
         }
 
-        console.log("📥 RAW Elasticsearch response received.", JSON.stringify(result, null, 2));
-        // console.log("📥 RAW Elasticsearch response received.");
+        // console.log("📥 RAW Elasticsearch response received.", JSON.stringify(result, null, 2));
+        console.log("📥 RAW Elasticsearch response received.");
 
 
         // Extract Hits
