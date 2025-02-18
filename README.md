@@ -25,24 +25,24 @@ It provides a web-based UI for running hybrid search queries, constructing LLM p
     cd rag-app
 
 ### **2. Install Dependencies**
+You will need npm installed. If you don't have npm installed, you can follow the guide at the [npmjs site](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
 
     npm install
 
-### **3. Set Up Environment Variables**
-
-Create a `.env.local` file and add:
-
-    NEXT_PUBLIC_ES_API_KEY=your-elasticsearch-api-key
-    NEXT_PUBLIC_ES_API_URL=https://your-elastic-cloud-instance.com
-    NEXT_PUBLIC_LLM_API_KEY=your-llm-api-key
-
-### **4. Start the Development Server**
+### **3. Start the Development Server**
 
     npm run dev
 
-### **5. Access the App**
+### **4. Access the App**
 
 Open  http://localhost:3000 in your browser.
+
+*NOTE* If you have something else running using port 3000 your app will start using the next available port. Just look at the output to see what port it uses. 
+
+
+[*OPTIONAL*] If you want it to run on a specific  port, say 4000 you can do so by running:
+
+    PORT=4000 npm run dev
 
 ## Blog
 For more information about the app, including how to use Open Crawler to index data see
